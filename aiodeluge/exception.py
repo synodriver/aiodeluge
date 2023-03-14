@@ -1,6 +1,8 @@
 """
 Copyright (c) 2008-2022 synodriver <synodriver@gmail.com>
 """
+
+
 class DelugeError(Exception):
     def __new__(cls, *args, **kwargs):
         inst = super().__new__(cls, *args, **kwargs)
@@ -39,7 +41,7 @@ class WrappedException(DelugeError):
         self.traceback = traceback
 
     def __str__(self):
-        return f'{self.message}\n{self.traceback}'
+        return f"{self.message}\n{self.traceback}"
 
 
 class _ClientSideRecreateError(DelugeError):
@@ -50,17 +52,17 @@ class IncompatibleClient(_ClientSideRecreateError):
     def __init__(self, daemon_version):
         self.daemon_version = daemon_version
         msg = (
-            'Your deluge client is not compatible with the daemon. '
-            'Please upgrade your client to %(daemon_version)s'
-        ) % {'daemon_version': self.daemon_version}
+            "Your deluge client is not compatible with the daemon. "
+            "Please upgrade your client to %(daemon_version)s"
+        ) % {"daemon_version": self.daemon_version}
         super().__init__(message=msg)
 
 
 class NotAuthorizedError(_ClientSideRecreateError):
     def __init__(self, current_level, required_level):
-        msg = ('Auth level too low: %(current_level)s < %(required_level)s') % {
-            'current_level': current_level,
-            'required_level': required_level,
+        msg = ("Auth level too low: %(current_level)s < %(required_level)s") % {
+            "current_level": current_level,
+            "required_level": required_level,
         }
         super().__init__(message=msg)
         self.current_level = current_level

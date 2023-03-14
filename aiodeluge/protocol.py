@@ -1,22 +1,23 @@
 """
 Copyright (c) 2008-2022 synodriver <synodriver@gmail.com>
 """
+import asyncio
+import struct
+
 # https://deluge.readthedocs.io/en/latest/reference/rpc.html
 import zlib
-import struct
-import asyncio
-import logging
-from typing import Dict
+from typing import Dict, Optional
 
 import rencode
+
+# log = logging.getLogger(__name__)
+from loguru import logger as log
 
 from aiodeluge import exception as error
 from aiodeluge.request import DelugeRPCRequest
 
-log = logging.getLogger(__name__)
-
 PROTOCOL_VERSION = 1
-MESSAGE_HEADER_FORMAT = '!BI'
+MESSAGE_HEADER_FORMAT = "!BI"
 MESSAGE_HEADER_SIZE = struct.calcsize(MESSAGE_HEADER_FORMAT)
 
 RPC_RESPONSE = 1
@@ -38,7 +39,7 @@ class DelugeTransferProtocol(asyncio.Protocol):
     """
 
     def __init__(self):
-        self._buffer = bytearray()  # TODO: Look into using bytearray instead of byte string.
+        self._buffer = bytearray()
         self._message_length = 0
         self._bytes_received = 0
         self._bytes_sent = 0
@@ -51,7 +52,7 @@ class DelugeTransferProtocol(asyncio.Protocol):
     def connection_made(self, transport) -> None:
         self.transport = transport
 
-    def connection_lost(self, exc: Exception | None) -> None:
+    def connection_lost(self, exc: Optional[Exception]) -> None:
         self.transport = None
         if exc is not None:
             self._close_waiter.set_exception(exc)
@@ -83,7 +84,7 @@ class DelugeTransferProtocol(asyncio.Protocol):
         body = zlib.compress(rencode.dumps(data))
         body_len = len(body)
         message = struct.pack(
-            f'{MESSAGE_HEADER_FORMAT}{body_len}s',
+            f"{MESSAGE_HEADER_FORMAT}{body_len}s",
             PROTOCOL_VERSION,
             body_len,
             body,
@@ -113,7 +114,7 @@ class DelugeTransferProtocol(asyncio.Protocol):
                 self._handle_complete_message(self._buffer[: self._message_length])
                 # Remove message data from buffer
                 # self._buffer = self._buffer[self._message_length:]
-                del self._buffer[:self._message_length]
+                del self._buffer[: self._message_length]
                 self._message_length = 0
             else:
                 break
@@ -130,7 +131,7 @@ class DelugeTransferProtocol(asyncio.Protocol):
             version, self._message_length = struct.unpack(MESSAGE_HEADER_FORMAT, header)
             if version != PROTOCOL_VERSION:
                 raise Exception(
-                    'Received invalid protocol version: {}. PROTOCOL_VERSION is {}.'.format(
+                    "Received invalid protocol version: {}. PROTOCOL_VERSION is {}.".format(
                         version, PROTOCOL_VERSION
                     )
                 )
@@ -138,9 +139,9 @@ class DelugeTransferProtocol(asyncio.Protocol):
             # self._buffer = self._buffer[MESSAGE_HEADER_SIZE:]
             del self._buffer[:MESSAGE_HEADER_SIZE]
         except Exception as ex:
-            log.warning('Error occurred when parsing message header: %s.', ex)
+            log.warning("Error occurred when parsing message header: %s.", ex)
             log.warning(
-                'This version of Deluge cannot communicate with the sender of this data.'
+                "This version of Deluge cannot communicate with the sender of this data."
             )
             self._message_length = 0
             self._buffer.clear()
@@ -156,7 +157,7 @@ class DelugeTransferProtocol(asyncio.Protocol):
             )
         except Exception as ex:
             log.warning(
-                'Failed to decompress (%d bytes) and load serialized data with rencode: %s',
+                "Failed to decompress (%d bytes) and load serialized data with rencode: %s",
                 len(data),
                 ex,
             )
@@ -199,11 +200,11 @@ class DelugeRPCProtocol(DelugeTransferProtocol):
         :param request: a tuple that should be either a RPCResponse, RCPError or RPCSignal
         """
         if not isinstance(request, tuple):
-            log.debug('Received invalid message: type is not tuple')
+            log.debug("Received invalid message: type is not tuple")
             return
         if len(request) < 3:
             log.debug(
-                'Received invalid message: number of items in ' 'response is %s',
+                "Received invalid message: number of items in " "response is %s",
                 len(request),
             )
             return
@@ -212,7 +213,7 @@ class DelugeRPCProtocol(DelugeTransferProtocol):
 
         if message_type == RPC_EVENT:
             event: str = request[1]
-            # log.debug('Received RPCEvent: %s', event)
+            log.debug("Received RPCEvent: %s", event)
             # A RPCEvent was received from the daemon so run any handlers
             # associated with it.
             if event in self.event_handlers:
@@ -240,9 +241,7 @@ class DelugeRPCProtocol(DelugeTransferProtocol):
                 exception = exception_cls(*request[3], **request[4])
                 waiter.set_exception(exception)
             except TypeError:
-                log.warning(
-                    'Received invalid RPC_ERROR (Old daemon?): %s', request[2]
-                )
+                log.warning("Received invalid RPC_ERROR (Old daemon?): %s", request[2])
                 return
 
                 # Ideally we would chain the deferreds instead of instance
@@ -276,7 +275,7 @@ class DelugeRPCProtocol(DelugeTransferProtocol):
                 import traceback
 
                 log.error(
-                    'Failed to handle RPC_ERROR (Old daemon?): %s\nLocal error: %s',
+                    "Failed to handle RPC_ERROR (Old daemon?): %s\nLocal error: %s",
                     request[2],
                     traceback.format_exc(),
                 )
@@ -303,10 +302,3 @@ class DelugeRPCProtocol(DelugeTransferProtocol):
 
     def num_pending_tasks(self):
         return len(self._tasks)
-
-
-async def connect(host, port, event_handlers: Dict, loop=None):
-    if loop is None:
-        loop = asyncio.get_running_loop()
-    transport, protocol = await loop.create_connection(lambda: DelugeRPCProtocol(event_handlers), host, port)
-    return protocol

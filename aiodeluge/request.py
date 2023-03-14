@@ -4,7 +4,7 @@ Copyright (c) 2008-2022 synodriver <synodriver@gmail.com>
 
 
 def format_kwargs(kwargs):
-    return ', '.join([key + '=' + str(value) for key, value in kwargs.items()])
+    return ", ".join([key + "=" + str(value) for key, value in kwargs.items()])
 
 
 class DelugeRPCRequest:
@@ -23,14 +23,14 @@ class DelugeRPCRequest:
         Returns a string of the RPCRequest in the following form:
             method(arg, kwarg=foo, ...)
         """
-        s = self.method + '('
+        s = self.method + "("
         if self.args:
-            s += ', '.join([str(x) for x in self.args])
+            s += ", ".join([str(x) for x in self.args])
         if self.kwargs:
             if self.args:
-                s += ', '
+                s += ", "
             s += format_kwargs(self.kwargs)
-        s += ')'
+        s += ")"
 
         return s
 
@@ -41,13 +41,13 @@ class DelugeRPCRequest:
         :returns: a properly formatted RPCRequest
         """
         if (
-                self.request_id is None
-                or self.method is None
-                or self.args is None
-                or self.kwargs is None
+            self.request_id is None
+            or self.method is None
+            or self.args is None
+            or self.kwargs is None
         ):
             raise TypeError(
-                'You must set the properties of this object before calling format_message!'
+                "You must set the properties of this object before calling format_message!"
             )
 
         return self.request_id, self.method, self.args, self.kwargs

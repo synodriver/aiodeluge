@@ -60,9 +60,11 @@ class DelugeTransferProtocol(asyncio.Protocol):
             self._close_waiter.set_result(None)
 
     def pause_writing(self) -> None:
+        self.transport.pause_reading()
         self._drain_waiter.clear()
 
     def resume_writing(self) -> None:
+        self.transport.resume_reading()
         self._drain_waiter.set()
 
     async def close(self):
